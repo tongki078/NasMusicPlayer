@@ -18,7 +18,7 @@ interface MusicApiService {
      *   (참고: apikey는 RetrofitInstance의 Interceptor가 모든 요청에 자동으로 추가합니다.)
      *
      * @param searchQuery 검색할 키워드
-     * test1
+     *
      *
      */
     @GET("gds_dviewer/normal/explorer/search")
