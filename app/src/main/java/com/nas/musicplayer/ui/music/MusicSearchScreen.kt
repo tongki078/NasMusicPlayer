@@ -72,7 +72,7 @@ fun MusicSearchScreen(
             val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0)
             if (!spokenText.isNullOrBlank()) {
                 viewModel.onSearchQueryChanged(spokenText)
-                viewModel.performSearch(spokenText)
+                viewModel.performSearch()
             }
         }
     }
