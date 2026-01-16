@@ -9,7 +9,6 @@ import retrofit2.http.Query
  */
 interface MusicApiService {
 
-    //
     /**
      * 음악을 검색합니다.
      * - 최종 요청 URL 예시: https://music.yommi.mywire.org/gds_dviewer/normal/explorer/search?query=김민종&apikey=gommikey
@@ -19,7 +18,8 @@ interface MusicApiService {
      *   (참고: apikey는 RetrofitInstance의 Interceptor가 모든 요청에 자동으로 추가합니다.)
      *
      * @param searchQuery 검색할 키워드
-     * @return SearchResponse 서버 응답을 담는 데이터 클래스
+     *
+     *
      */
     @GET("gds_dviewer/normal/explorer/search")
     suspend fun search(@Query("query") searchQuery: String): SearchResponse
