@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">NasMusicPlayer</string>
+    <string name="greeting_name">Nas</string>
+    <string name="hello_greeting">Hello %1$s!</string>
+    <string name="preview_name">Android</string>
+    <string name="ai_question">AI가 세상을 바꾸는 방법은?</string>
+    <string name="error_message">에러 발생</string>
+    <string name="initial_text">Hello!</string>
+    <string name="ask_button_text">Ask</string>
+    <!-- ... 기존 문자열들 ... -->
+    <string name="prompt_hint">여기에 프롬프트를 입력하세요</string>
+</resources>
