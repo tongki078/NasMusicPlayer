@@ -9,6 +9,7 @@ import retrofit2.http.Query
  */
 interface MusicApiService {
 
+    //
     /**
      * 음악을 검색합니다.
      * - 최종 요청 URL 예시: https://music.yommi.mywire.org/gds_dviewer/normal/explorer/search?query=김민종&apikey=gommikey
