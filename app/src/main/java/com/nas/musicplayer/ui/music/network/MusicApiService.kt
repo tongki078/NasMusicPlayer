@@ -19,7 +19,7 @@ interface MusicApiService {
      *
      * @param searchQuery 검색할 키워드
      *
-     *dd
+     *
      */
     @GET("gds_dviewer/normal/explorer/search")
     suspend fun search(@Query("query") searchQuery: String): SearchResponse
