@@ -112,6 +112,7 @@ fun MusicSearchScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // 검색바
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -167,14 +168,15 @@ fun MusicSearchScreen(
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else if (uiState.searchQuery.isEmpty() && uiState.recentSearches.isNotEmpty()) {
-                    // 최근 검색어 뷰
+                    // ★ 애플 뮤직 스타일의 최근 검색어 뷰
                     RecentSearchesView(
                         recentSearches = uiState.recentSearches,
                         onSearchClick = { 
                             viewModel.performSearch(it)
                             focusManager.clearFocus()
                         },
-                        onDeleteClick = { viewModel.deleteRecentSearch(it) }
+                        onDeleteClick = { viewModel.deleteRecentSearch(it) },
+                        onClearAll = { viewModel.clearAllRecentSearches() }
                     )
                 } else if (uiState.songs.isEmpty() && uiState.searchQuery.isNotBlank()) {
                     NoResultsView(query = uiState.searchQuery)
@@ -228,38 +230,83 @@ fun MusicSearchScreen(
 fun RecentSearchesView(
     recentSearches: List<RecentSearch>,
     onSearchClick: (String) -> Unit,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (String) -> Unit,
+    onClearAll: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text(
-            "최근 검색어", 
-            style = MaterialTheme.typography.titleLarge, 
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        
-        recentSearches.forEach { search ->
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 100.dp)
+    ) {
+        item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onSearchClick(search.query) }
-                    .padding(vertical = 12.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.History, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(search.query, fontSize = 17.sp)
-                }
-                IconButton(
-                    onClick = { onDeleteClick(search.query) }, 
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "삭제", tint = Color.LightGray, modifier = Modifier.size(16.dp))
-                }
+                Text(
+                    "최근 검색어", 
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp
+                    )
+                )
+                Text(
+                    "지우기", 
+                    color = primaryColor,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.clickable { onClearAll() }
+                )
             }
-            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.3f))
+        }
+        
+        items(recentSearches) { search ->
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSearchClick(search.query) }
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            Icons.Default.History, 
+                            contentDescription = null, 
+                            tint = Color.Gray.copy(alpha = 0.6f), 
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            search.query, 
+                            fontSize = 17.sp, 
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(
+                        onClick = { onDeleteClick(search.query) }, 
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close, 
+                            contentDescription = "삭제", 
+                            tint = Color.LightGray, 
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 52.dp, end = 16.dp),
+                    thickness = 0.5.dp, 
+                    color = Color.LightGray.copy(alpha = 0.2f)
+                )
+            }
         }
     }
 }

@@ -58,7 +58,7 @@ class MusicSearchViewModel(private val repository: MusicRepository) : ViewModel(
     fun performSearch(query: String = _uiState.value.searchQuery) {
         if (query.isBlank()) return
         
-        // 검색 시 쿼리 업데이트 (최근 검색어 클릭 시 필요)
+        // 검색 시 쿼리 업데이트
         _uiState.update { it.copy(searchQuery = query) }
 
         viewModelScope.launch {
@@ -80,12 +80,16 @@ class MusicSearchViewModel(private val repository: MusicRepository) : ViewModel(
         }
     }
 
-    // 아티스트 이름을 기반으로 정보를 가져오는 함수
+    fun clearAllRecentSearches() {
+        viewModelScope.launch {
+            repository.clearAllRecentSearches()
+        }
+    }
+
     fun loadArtistDetails(artistName: String, fallbackImageUrl: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isArtistLoading = true) }
             try {
-                // 아티스트 이름으로 검색하여 관련 곡들을 가져옴
                 val relatedSongs = musicApiService.search(artistName).toSongList().filter { !it.isDir }
                 val artistInfo = Artist(
                     name = artistName,

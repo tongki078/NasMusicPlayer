@@ -42,4 +42,9 @@ class MusicRepository(
     suspend fun deleteRecentSearch(query: String) {
         recentSearchDao.deleteSearch(query)
     }
+
+    // 추가: 전체 검색어 삭제
+    suspend fun clearAllRecentSearches() {
+        recentSearchDao.deleteAll()
+    }
 }
