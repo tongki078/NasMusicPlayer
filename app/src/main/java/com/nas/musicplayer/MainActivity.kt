@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -76,31 +75,20 @@ class MainActivity : ComponentActivity() {
                 var selectedPlaylistId by remember { mutableStateOf<Int?>(null) }
                 var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) }
                 
-                // --- 권한 요청 로직 강화 ---
                 val context = LocalContext.current
-                val requiredPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    Manifest.permission.READ_MEDIA_AUDIO
-                } else {
-                    Manifest.permission.READ_EXTERNAL_STORAGE
+                val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 
+                    Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
+                
+                var hasPermission by remember {
+                    mutableStateOf(ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED)
                 }
 
-                var permissionGranted by remember {
-                    mutableStateOf(ContextCompat.checkSelfPermission(context, requiredPermission) == PackageManager.PERMISSION_GRANTED)
-                }
-
-                val launcher = rememberLauncherForActivityResult(
+                val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
-                ) { isGranted ->
-                    permissionGranted = isGranted
-                    if (!isGranted) {
-                        Log.e("NasPlayer", "Permission Denied by User")
-                    }
-                }
+                ) { isGranted -> hasPermission = isGranted }
 
                 LaunchedEffect(Unit) {
-                    if (!permissionGranted) {
-                        launcher.launch(requiredPermission)
-                    }
+                    if (!hasPermission) permissionLauncher.launch(permission)
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -125,7 +113,7 @@ class MainActivity : ComponentActivity() {
                         }
                     ) { innerPadding ->
                         Box(modifier = Modifier.padding(innerPadding)) {
-                            AnimatedContent(targetState = currentScreen, label = "") { targetScreen ->
+                            AnimatedContent(targetState = currentScreen, label = "ScreenTransition") { targetScreen ->
                                 when (targetScreen) {
                                     Screen.SEARCH -> MusicSearchScreen(
                                         onNavigateToArtist = { artist ->
@@ -136,31 +124,48 @@ class MainActivity : ComponentActivity() {
                                             songToAddToPlaylist = it
                                             currentScreen = Screen.ADD_TO_PLAYLIST
                                         },
-                                        onNavigateToAlbum = {
-                                            selectedAlbum = it
+                                        onNavigateToAlbum = { album ->
+                                            // ★ 앨범 보기 클릭 시 정확한 앨범 정보와 함께 화면 이동
+                                            selectedAlbum = album
                                             currentScreen = Screen.ALBUM_DETAIL
                                         },
                                         onSongClick = { playerViewModel.playSong(it, uiState.songs) },
                                         onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
                                     )
-                                    Screen.LIBRARY -> {
-                                        if (permissionGranted) {
-                                            LibraryScreen(
-                                                onSongClick = { song, list -> playerViewModel.playSong(song, list) },
-                                                onNavigateToAddToPlaylist = {
-                                                    songToAddToPlaylist = it
-                                                    currentScreen = Screen.ADD_TO_PLAYLIST
-                                                },
-                                                onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
-                                            )
-                                        } else {
-                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Button(onClick = { launcher.launch(requiredPermission) }) {
-                                                    Text("권한 허용 후 파일 불러오기")
-                                                }
+                                    Screen.LIBRARY -> LibraryScreen(
+                                        onSongClick = { song, list -> playerViewModel.playSong(song, list) },
+                                        onNavigateToAddToPlaylist = {
+                                            songToAddToPlaylist = it
+                                            currentScreen = Screen.ADD_TO_PLAYLIST
+                                        },
+                                        onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
+                                    )
+                                    Screen.ALBUM_DETAIL -> AlbumDetailScreen(
+                                        album = selectedAlbum ?: emptyAlbum,
+                                        onBack = { currentScreen = Screen.SEARCH },
+                                        onSongClick = { song ->
+                                            playerViewModel.playSong(song, (selectedAlbum ?: emptyAlbum).songs)
+                                        }
+                                    )
+                                    Screen.ARTIST_DETAIL -> ArtistDetailScreen(
+                                        artist = uiState.selectedArtist ?: emptyArtist,
+                                        onBack = { currentScreen = Screen.SEARCH },
+                                        onSongClick = { song ->
+                                            playerViewModel.playSong(song, uiState.selectedArtist?.popularSongs ?: emptyList())
+                                            currentScreen = Screen.NOW_PLAYING
+                                        },
+                                        onPlayAllClick = {
+                                            val songs = uiState.selectedArtist?.popularSongs ?: emptyList()
+                                            if (songs.isNotEmpty()) {
+                                                playerViewModel.playSong(songs.first(), songs)
+                                                currentScreen = Screen.NOW_PLAYING
                                             }
                                         }
-                                    }
+                                    )
+                                    Screen.NOW_PLAYING -> NowPlayingScreen(
+                                        viewModel = playerViewModel,
+                                        onBack = { currentScreen = Screen.SEARCH }
+                                    )
                                     Screen.ADD_TO_PLAYLIST -> songToAddToPlaylist?.let {
                                         AddToPlaylistScreen(
                                             song = it,
@@ -189,33 +194,6 @@ class MainActivity : ComponentActivity() {
                                             viewModel = viewModel(factory = factory)
                                         )
                                     }
-                                    Screen.ARTIST_DETAIL -> ArtistDetailScreen(
-                                        artist = uiState.selectedArtist ?: emptyArtist,
-                                        onBack = { currentScreen = Screen.SEARCH },
-                                        onSongClick = { song ->
-                                            playerViewModel.playSong(song, uiState.selectedArtist?.popularSongs ?: emptyList())
-                                            currentScreen = Screen.NOW_PLAYING
-                                        },
-                                        onPlayAllClick = {
-                                            val songs = uiState.selectedArtist?.popularSongs ?: emptyList()
-                                            if (songs.isNotEmpty()) {
-                                                playerViewModel.playSong(songs.first(), songs)
-                                                currentScreen = Screen.NOW_PLAYING
-                                            }
-                                        }
-                                    )
-                                    Screen.NOW_PLAYING -> NowPlayingScreen(
-                                        viewModel = playerViewModel,
-                                        onBack = { currentScreen = Screen.SEARCH }
-                                    )
-                                    Screen.ALBUM_DETAIL -> AlbumDetailScreen(
-                                        album = selectedAlbum ?: emptyAlbum,
-                                        onBack = { currentScreen = Screen.SEARCH },
-                                        onSongClick = { song ->
-                                            playerViewModel.playSong(song, (selectedAlbum ?: emptyAlbum).songs)
-                                            currentScreen = Screen.NOW_PLAYING
-                                        }
-                                    )
                                 }
                             }
                         }

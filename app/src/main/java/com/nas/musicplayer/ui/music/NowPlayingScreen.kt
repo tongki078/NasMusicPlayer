@@ -19,12 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -32,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.nas.musicplayer.R
 import kotlin.math.roundToInt
 
@@ -56,9 +57,7 @@ fun NowPlayingScreen(
 
     val draggableState = rememberDraggableState { delta ->
         val newOffset = offsetY + delta
-        if (newOffset >= 0) {
-            offsetY = newOffset
-        }
+        if (newOffset >= 0) offsetY = newOffset
     }
 
     val pagerState = rememberPagerState(
@@ -78,7 +77,7 @@ fun NowPlayingScreen(
         }
     }
 
-    val albumArtScale by animateFloatAsState(targetValue = if (isPlaying) 1f else 0.85f, label = "albumArtScale")
+    val albumArtScale by animateFloatAsState(targetValue = if (isPlaying) 1f else 0.88f, label = "albumArtScale")
 
     Box(
         modifier = Modifier
@@ -95,11 +94,7 @@ fun NowPlayingScreen(
                 state = draggableState,
                 orientation = Orientation.Vertical,
                 onDragStopped = {
-                    if (offsetY > dismissThreshold) {
-                        onBack()
-                    } else {
-                        offsetY = 0f
-                    }
+                    if (offsetY > dismissThreshold) onBack() else offsetY = 0f
                 }
             )
             .offset { IntOffset(0, offsetY.roundToInt()) }
@@ -113,57 +108,53 @@ fun NowPlayingScreen(
         ) {
             // 1. Top Bar
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Close", modifier = Modifier.size(32.dp), tint = Color(0xFFFA2D48))
+                    Icon(Icons.Rounded.KeyboardArrowDown, null, modifier = Modifier.size(32.dp), tint = Color(0xFFFA2D48))
                 }
-                Box(
-                    modifier = Modifier
-                        .size(36.dp, 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                )
+                Box(modifier = Modifier.size(36.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)))
                 IconButton(onClick = { /* More */ }) {
-                    Icon(Icons.Rounded.MoreHoriz, contentDescription = "More", tint = Color(0xFFFA2D48))
+                    Icon(Icons.Rounded.MoreHoriz, null, tint = Color(0xFFFA2D48))
                 }
             }
 
             Spacer(modifier = Modifier.weight(0.2f))
 
-            // 2. Album Art Pager
+            // 2. Album Art Pager (그림자와 배경 제거)
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                 contentPadding = PaddingValues(horizontal = 0.dp)
             ) { page ->
                 val pageSong = playlist.getOrNull(page)
+                val context = LocalContext.current
+                
+                val imageRequest = remember(pageSong?.id, pageSong?.metaPoster) {
+                    ImageRequest.Builder(context)
+                        .data(pageSong?.metaPoster ?: pageSong?.albumArtRes)
+                        .crossfade(500)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .build()
+                }
+
                 AsyncImage(
-                    model = pageSong?.metaPoster ?: pageSong?.albumArtRes ?: R.drawable.ic_launcher_background,
+                    model = imageRequest,
                     contentDescription = "Album Art",
-                    placeholder = painterResource(id = R.drawable.ic_launcher_background),
-                    error = painterResource(id = R.drawable.ic_launcher_background),
                     modifier = Modifier
                         .fillMaxSize()
                         .scale(if (page == pagerState.currentPage) albumArtScale else 0.85f)
-                        .shadow(
-                            if (isPlaying && page == pagerState.currentPage) 30.dp else 4.dp, 
-                            RoundedCornerShape(12.dp)
-                        )
-                        .clip(RoundedCornerShape(12.dp)),
+                        .clip(RoundedCornerShape(12.dp)), // 그림자와 배경색 코드 완전 제거
                     contentScale = ContentScale.Crop
                 )
             }
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // 3. Info (Title & Artist)
+            // 3. Info
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -173,27 +164,19 @@ fun NowPlayingScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = song?.name ?: "알 수 없는 제목",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
-                                letterSpacing = (-0.5).sp
-                            ),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = song?.artist ?: "Unknown Artist",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                color = Color(0xFFFA2D48),
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Medium
-                            ),
+                            style = MaterialTheme.typography.bodyLarge.copy(color = Color(0xFFFA2D48), fontSize = 17.sp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                     IconButton(onClick = { /* Favorite */ }) {
-                        Icon(Icons.Rounded.FavoriteBorder, contentDescription = "Favorite", tint = Color(0xFFFA2D48))
+                        Icon(Icons.Rounded.FavoriteBorder, null, tint = Color(0xFFFA2D48))
                     }
                 }
 
@@ -209,10 +192,7 @@ fun NowPlayingScreen(
                         inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                     )
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(text = formatTime(currentPosition), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(text = formatTime(duration), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -220,59 +200,43 @@ fun NowPlayingScreen(
 
             Spacer(modifier = Modifier.weight(0.2f))
 
-            // 5. Player Controls
+            // 5. Controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { /* Lyrics */ }) {
-                    Icon(Icons.Rounded.Lyrics, contentDescription = "Lyrics", modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
+                    Icon(Icons.Rounded.Lyrics, null, modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
                 }
-                
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     IconButton(onClick = { viewModel.playPrevious() }) {
-                        Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Rounded.SkipPrevious, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
-                    IconButton(
-                        onClick = { viewModel.togglePlayPause() },
-                        modifier = Modifier.size(72.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                            contentDescription = "Play/Pause",
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    IconButton(onClick = { viewModel.togglePlayPause() }, modifier = Modifier.size(72.dp)) {
+                        Icon(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = { viewModel.playNext() }) {
-                        Icon(Icons.Rounded.SkipNext, contentDescription = "Next", modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Rounded.SkipNext, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
                 }
-
                 IconButton(onClick = { /* AirPlay */ }) {
-                    Icon(Icons.Rounded.Airplay, contentDescription = "AirPlay", modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
+                    Icon(Icons.Rounded.Airplay, null, modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
                 }
             }
 
             Spacer(modifier = Modifier.weight(0.2f))
             
-            // 6. Volume Slider
+            // 6. Volume
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)
             ) {
-                Icon(Icons.AutoMirrored.Rounded.VolumeDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                Icon(Icons.AutoMirrored.Rounded.VolumeDown, null, modifier = Modifier.size(16.dp), tint = Color.Gray)
                 Slider(
                     value = volume,
-                    onValueChange = { 
-                        // 드래그 즉시 뷰모델에 반영하여 실시간 체감 향상
-                        viewModel.setVolume(it) 
-                    },
+                    onValueChange = { viewModel.setVolume(it) },
                     modifier = Modifier.weight(1f),
                     colors = SliderDefaults.colors(
                         thumbColor = Color.White,
@@ -280,7 +244,7 @@ fun NowPlayingScreen(
                         inactiveTrackColor = Color.LightGray.copy(alpha = 0.3f)
                     )
                 )
-                Icon(Icons.AutoMirrored.Rounded.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, modifier = Modifier.size(16.dp), tint = Color.Gray)
             }
         }
     }
@@ -288,7 +252,5 @@ fun NowPlayingScreen(
 
 private fun formatTime(ms: Long): String {
     val totalSeconds = (ms / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }

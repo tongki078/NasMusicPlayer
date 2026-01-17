@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
@@ -16,19 +17,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.nas.musicplayer.R
-import com.nas.musicplayer.ui.theme.NasAppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +36,7 @@ fun ArtistDetailScreen(
     onSongClick: (Song) -> Unit,
     onPlayAllClick: () -> Unit
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val appleRed = Color(0xFFFA2D48)
 
     Scaffold(
         topBar = {
@@ -46,204 +44,169 @@ fun ArtistDetailScreen(
                 title = { },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = primaryColor)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = appleRed)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // 아티스트 헤더
-            item {
-                Column(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .size(240.dp)
-                            .shadow(20.dp, CircleShape),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        AsyncImage(
-                            model = artist.imageUrl ?: artist.profileImageRes,
-                            contentDescription = "Artist Profile",
-                            placeholder = painterResource(id = R.drawable.ic_launcher_background),
-                            error = painterResource(id = R.drawable.ic_launcher_background),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                actions = {
+                    IconButton(onClick = { /* 옵션 */ }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = appleRed)
                     }
-                    
-                    Spacer(modifier = Modifier.height(28.dp))
-                    
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 120.dp)
+        ) {
+            // 1. 아티스트 헤더 (대형 이미지)
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                ) {
+                    AsyncImage(
+                        model = artist.imageUrl ?: R.drawable.ic_launcher_background,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    // 하단 텍스트 가독성을 위한 그래디언트
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                                    startY = 400f
+                                )
+                            )
+                    )
                     Text(
                         text = artist.name,
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.5).sp
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            letterSpacing = (-1).sp
                         ),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp)
-                    )
-                    
-                    Text(
-                        text = "아티스트 · 팔로워 ${artist.followers}",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = primaryColor,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 20.dp, bottom = 24.dp)
                     )
                 }
             }
 
-            // 재생 & 셔플 버튼
+            // 2. 재생 및 셔플 버튼 섹션
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Button(
                         onClick = onPlayAllClick,
                         modifier = Modifier
                             .weight(1f)
-                            .height(54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray.copy(alpha = 0.1f)),
                         shape = RoundedCornerShape(12.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                        elevation = null
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = primaryColor, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = appleRed)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("재생", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Text("재생", color = appleRed, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
-                    
                     Button(
-                        onClick = { 
-                            if (artist.popularSongs.isNotEmpty()) {
-                                onSongClick(artist.popularSongs.random())
-                            }
-                        },
+                        onClick = onPlayAllClick,
                         modifier = Modifier
                             .weight(1f)
-                            .height(54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray.copy(alpha = 0.1f)),
                         shape = RoundedCornerShape(12.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                        elevation = null
                     ) {
-                        Icon(Icons.Default.Shuffle, contentDescription = null, tint = primaryColor, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.Shuffle, contentDescription = null, tint = appleRed)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("셔플", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Text("셔플", color = appleRed, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
             }
 
-            // 인기곡 목록
+            // 3. 인기 곡 섹션 타이틀
             item {
                 Text(
-                    text = "인기곡",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                    "인기 곡",
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold)
                 )
             }
 
+            // 4. 곡 리스트
             itemsIndexed(artist.popularSongs) { index, song ->
-                ArtistSongRow(
-                    song = song,
+                ArtistSongItem(
                     index = index + 1,
+                    song = song,
                     onClick = { onSongClick(song) }
                 )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 64.dp, end = 20.dp),
+                    thickness = 0.5.dp,
+                    color = Color.LightGray.copy(alpha = 0.3f)
+                )
             }
-            
-            item { Spacer(modifier = Modifier.height(120.dp)) }
         }
     }
 }
 
 @Composable
-fun ArtistSongRow(
-    song: Song,
+fun ArtistSongItem(
     index: Int,
+    song: Song,
     onClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.clickable(onClick = onClick)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = index.toString(),
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                ),
-                modifier = Modifier.width(24.dp)
-            )
-            
-            AsyncImage(
-                model = song.metaPoster ?: song.albumArtRes,
-                contentDescription = null,
-                placeholder = painterResource(id = R.drawable.ic_launcher_background),
-                error = painterResource(id = R.drawable.ic_launcher_background),
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(6.dp)),
-                contentScale = ContentScale.Crop
-            )
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = song.name ?: "제목 없음",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            
-            IconButton(onClick = { /* 곡 옵션 */ }) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-        HorizontalDivider(
-            modifier = Modifier.padding(start = 90.dp, end = 20.dp),
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        Text(
+            text = index.toString(),
+            modifier = Modifier.width(24.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
         )
-    }
-}
+        
+        AsyncImage(
+            model = song.metaPoster ?: R.drawable.ic_launcher_background,
+            contentDescription = null,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(6.dp)),
+            contentScale = ContentScale.Crop
+        )
 
-@Preview(showBackground = true, widthDp = 360)
-@Composable
-fun ArtistDetailScreenPreview() {
-    NasAppTheme {
-        ArtistDetailScreen(artist = emptyArtist, onBack = {}, onSongClick = {}, onPlayAllClick = {})
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song.name ?: "제목 없음",
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "인기 곡", // 또는 앨범 명
+                style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+            )
+        }
+        
+        IconButton(onClick = { /* 옵션 */ }) {
+            Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+        }
     }
 }

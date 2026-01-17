@@ -25,7 +25,9 @@ data class Song(
     @SerialName("meta_poster") val metaPoster: String? = null,
     val artist: String = "Unknown Artist",
     val albumName: String = "Unknown Album",
-    val albumArtRes: Int? = R.drawable.ic_launcher_background
+    val albumArtRes: Int? = R.drawable.ic_launcher_background,
+    // 차후 album_info 객체를 위한 필드 (현재는 임시 String)
+    val albumInfo: String? = null 
 )
 
 data class Artist(
@@ -34,7 +36,8 @@ data class Artist(
     val profileImageRes: Int = R.drawable.ic_launcher_background,
     val imageUrl: String? = null,
     val followers: String = "0",
-    val popularSongs: List<Song> = emptyList()
+    val popularSongs: List<Song> = emptyList(),
+    val albums: List<Album> = emptyList() // 아티스트의 앨범 목록 추가
 )
 
 data class Album(
