@@ -14,11 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -37,22 +37,24 @@ import kotlinx.coroutines.delay
 fun AddToPlaylistScreen(
     song: Song,
     onBack: () -> Unit,
-    onAddComplete: () -> Unit, // 추가 완료 후 콜백
+    onNavigateToPlaylists: () -> Unit, // ★★★ 콜백 이름을 onNavigateToPlaylists로 통일
     viewModel: AddToPlaylistViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var showAddedMessage by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
+    var isAlreadyIn by remember { mutableStateOf(false) }
 
     val primaryColor = MaterialTheme.colorScheme.primary
 
-    // 상태 변화를 감지하여 화면 이동 처리
     LaunchedEffect(showAddedMessage) {
         if (showAddedMessage) {
-            delay(1000) // 1초 동안 메시지 노출
+            delay(1200) 
             showAddedMessage = false
-            onAddComplete() // 완료 콜back 호출 (MainActivity에서 Screen.SEARCH로 보냄)
+            delay(150) 
+            // 완료 후 플레이리스트 목록으로 이동 (MainActivity의 결정에 따름)
+            onNavigateToPlaylists()
         }
     }
 
@@ -60,7 +62,7 @@ fun AddToPlaylistScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { },
+                    title = { }, 
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기", tint = primaryColor)
@@ -82,9 +84,7 @@ fun AddToPlaylistScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = !showAddedMessage) {
-                                showCreatePlaylistDialog = true
-                            }
+                            .clickable(enabled = !showAddedMessage) { showCreatePlaylistDialog = true }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -104,7 +104,7 @@ fun AddToPlaylistScreen(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            "새 플레이리스트",
+                            "새 플레이리스트", 
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 color = primaryColor,
                                 fontWeight = FontWeight.SemiBold,
@@ -124,8 +124,15 @@ fun AddToPlaylistScreen(
                         playlist = playlist,
                         enabled = !showAddedMessage,
                         onClick = {
-                            viewModel.addSongToPlaylist(playlist.id, song)
-                            successMessage = "'${song.name}' 추가됨"
+                            val exists = playlist.songs.any { it.id == song.id }
+                            if (exists) {
+                                successMessage = "이미 추가된 노래입니다"
+                                isAlreadyIn = true
+                            } else {
+                                viewModel.addSongToPlaylist(playlist.id, song)
+                                successMessage = "보관함에 추가됨"
+                                isAlreadyIn = false
+                            }
                             showAddedMessage = true
                         }
                     )
@@ -133,17 +140,20 @@ fun AddToPlaylistScreen(
             }
         }
 
-        // --- 세련된 플로팅 토스트 ---
         Box(
             modifier = Modifier
-                .align(Alignment.Center) // 화면 중앙 배치
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp) 
         ) {
             AnimatedVisibility(
                 visible = showAddedMessage,
-                enter = scaleIn(initialScale = 0.8f) + fadeIn(),
-                exit = scaleOut(targetScale = 0.8f) + fadeOut()
+                enter = slideInVertically(
+                    initialOffsetY = { it / 2 },
+                    animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)
+                ) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
             ) {
-                AppleStyleAddedToast(message = successMessage)
+                ModernAppleToast(message = successMessage, isWarning = isAlreadyIn)
             }
         }
     }
@@ -153,7 +163,8 @@ fun AddToPlaylistScreen(
             onDismiss = { showCreatePlaylistDialog = false },
             onCreate = { name ->
                 viewModel.createAndAddSong(name, song)
-                successMessage = "'${name}' 생성 및 추가됨"
+                successMessage = "보관함에 추가됨"
+                isAlreadyIn = false
                 showAddedMessage = true
                 showCreatePlaylistDialog = false
             }
@@ -162,34 +173,41 @@ fun AddToPlaylistScreen(
 }
 
 @Composable
-fun AppleStyleAddedToast(message: String) {
+fun ModernAppleToast(message: String, isWarning: Boolean) {
+    val backgroundColor = Color(0xFF2C2C2E).copy(alpha = 0.95f)
+    
     Surface(
-        color = Color(0xFF1C1C1E).copy(alpha = 0.9f), // iOS Midnight Grey
-        shape = RoundedCornerShape(16.dp),
+        color = backgroundColor,
+        shape = CircleShape, 
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
         shadowElevation = 12.dp,
-        modifier = Modifier.size(150.dp) // 세련된 컴팩트 사이즈
+        modifier = Modifier
+            .padding(horizontal = 32.dp)
+            .height(54.dp)
+            .widthIn(min = 220.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(12.dp)
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Check,
+                imageVector = if (isWarning) Icons.Default.Info else Icons.Default.Check,
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(22.dp),
                 tint = Color.White
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    letterSpacing = (-0.3).sp
                 ),
                 color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 18.sp
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -235,7 +253,7 @@ fun SimplePlaylistItem(
                 }
             }
             Spacer(modifier = Modifier.width(16.dp))
-
+            
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = playlist.name,
@@ -254,7 +272,7 @@ fun SimplePlaylistItem(
             }
         }
         HorizontalDivider(
-            modifier = Modifier.padding(start = 92.dp, end = 16.dp),
+            modifier = Modifier.padding(start = 92.dp),
             thickness = 0.5.dp,
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         )

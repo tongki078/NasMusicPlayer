@@ -1,7 +1,7 @@
 package com.nas.musicplayer
 
-import android.os.Bundle
 import android.media.AudioManager
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -49,17 +49,17 @@ enum class Screen {
 @UnstableApi
 class MainActivity : ComponentActivity() {
     private val searchViewModel: MusicSearchViewModel by viewModels()
+
     private val playerViewModel: MusicPlayerViewModel by viewModels {
-        MusicPlayerViewModelFactory(this)
+        val database = AppDatabase.getDatabase(this)
+        val repository = MusicRepository(database.playlistDao())
+        MusicPlayerViewModelFactory(this, repository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 휴대폰의 물리 음량 버튼이 '미디어 음량'을 조절하도록 설정
         volumeControlStream = AudioManager.STREAM_MUSIC
-
-        // 데이터베이스 초기화
         PlaylistManager.init(this)
 
         setContent {
@@ -113,25 +113,21 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 Screen.ARTIST_DETAIL -> {
-                                    if (uiState.isArtistLoading) {
-                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator()
-                                        }
-                                    } else {
-                                        val artist = uiState.selectedArtist ?: emptyArtist
-                                        ArtistDetailScreen(
-                                            artist = artist,
-                                            onBack = { currentScreen = Screen.SEARCH },
-                                            onSongClick = { song ->
-                                                playerViewModel.playSong(song, artist.popularSongs)
-                                            },
-                                            onPlayAllClick = {
-                                                if (artist.popularSongs.isNotEmpty()) {
-                                                    playerViewModel.playSong(artist.popularSongs.first(), artist.popularSongs)
-                                                }
+                                    ArtistDetailScreen(
+                                        artist = uiState.selectedArtist ?: emptyArtist,
+                                        onBack = { currentScreen = Screen.SEARCH },
+                                        onSongClick = { song ->
+                                            playerViewModel.playSong(song, uiState.selectedArtist?.popularSongs ?: emptyList())
+                                            currentScreen = Screen.NOW_PLAYING
+                                        },
+                                        onPlayAllClick = {
+                                            val songs = uiState.selectedArtist?.popularSongs ?: emptyList()
+                                            if (songs.isNotEmpty()) {
+                                                playerViewModel.playSong(songs.first(), songs)
+                                                currentScreen = Screen.NOW_PLAYING
                                             }
-                                        )
-                                    }
+                                        }
+                                    )
                                 }
                                 Screen.NOW_PLAYING -> {
                                     NowPlayingScreen(
@@ -144,8 +140,8 @@ class MainActivity : ComponentActivity() {
                                         AddToPlaylistScreen(
                                             song = it,
                                             onBack = { currentScreen = Screen.SEARCH },
-                                            onAddComplete = {
-                                                currentScreen = Screen.SEARCH
+                                            onNavigateToPlaylists = {
+                                                currentScreen = Screen.PLAYLISTS
                                             }
                                         )
                                     }
@@ -156,6 +152,7 @@ class MainActivity : ComponentActivity() {
                                         onBack = { currentScreen = Screen.SEARCH },
                                         onSongClick = { song ->
                                             playerViewModel.playSong(song, (selectedAlbum ?: emptyAlbum).songs)
+                                            currentScreen = Screen.NOW_PLAYING
                                         }
                                     )
                                 }
@@ -165,7 +162,9 @@ class MainActivity : ComponentActivity() {
                                             selectedPlaylistId = playlistId
                                             currentScreen = Screen.PLAYLIST_DETAIL
                                         },
-                                        onBack = { currentScreen = Screen.SEARCH }
+                                        onBack = { currentScreen = Screen.SEARCH },
+                                        // ★★★ 에러 해결: 불필요한 factory 제거 ★★★
+                                        viewModel = viewModel()
                                     )
                                 }
                                 Screen.PLAYLIST_DETAIL -> {
@@ -223,6 +222,8 @@ fun MiniPlayer(
     onNextClick: () -> Unit,
     onClick: () -> Unit
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -270,7 +271,7 @@ fun MiniPlayer(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
-                    tint = Color(0xFFFA2D48)
+                    tint = primaryColor
                 )
             }
 
@@ -279,7 +280,7 @@ fun MiniPlayer(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
-                    tint = Color(0xFFFA2D48)
+                    tint = primaryColor
                 )
             }
         }
