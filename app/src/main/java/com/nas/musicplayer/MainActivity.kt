@@ -40,7 +40,7 @@ import com.nas.musicplayer.ui.music.*
 import com.nas.musicplayer.ui.theme.NasAppTheme
 
 enum class Screen {
-    SEARCH, LIBRARY, PLAYLISTS, ARTIST_DETAIL, NOW_PLAYING, ADD_TO_PLAYLIST, ALBUM_DETAIL, PLAYLIST_DETAIL
+    SEARCH, LIBRARY, PLAYLISTS, ARTIST_DETAIL, NOW_PLAYING, ADD_TO_PLAYLIST, ALBUM_DETAIL, PLAYLIST_DETAIL, ALBUMS_GRID
 }
 
 @UnstableApi
@@ -51,13 +51,8 @@ class MainActivity : ComponentActivity() {
         MusicRepository(database.playlistDao(), database.recentSearchDao())
     }
 
-    private val searchViewModel: MusicSearchViewModel by viewModels {
-        MusicSearchViewModelFactory(repository)
-    }
-    
-    private val playerViewModel: MusicPlayerViewModel by viewModels {
-        MusicPlayerViewModelFactory(this, repository)
-    }
+    private val searchViewModel: MusicSearchViewModel by viewModels { MusicSearchViewModelFactory(repository) }
+    private val playerViewModel: MusicPlayerViewModel by viewModels { MusicPlayerViewModelFactory(this, repository) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,21 +70,13 @@ class MainActivity : ComponentActivity() {
                 var selectedPlaylistId by remember { mutableStateOf<Int?>(null) }
                 var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) }
                 
+                // 권한 관리
                 val context = LocalContext.current
                 val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 
                     Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
-                
-                var hasPermission by remember {
-                    mutableStateOf(ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED)
-                }
-
-                val permissionLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestPermission()
-                ) { isGranted -> hasPermission = isGranted }
-
-                LaunchedEffect(Unit) {
-                    if (!hasPermission) permissionLauncher.launch(permission)
-                }
+                var hasPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) }
+                val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasPermission = it }
+                LaunchedEffect(Unit) { if (!hasPermission) launcher.launch(permission) }
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     Scaffold(
@@ -103,7 +90,7 @@ class MainActivity : ComponentActivity() {
                                         label = { Text("검색") }
                                     )
                                     NavigationBarItem(
-                                        selected = currentScreen == Screen.LIBRARY,
+                                        selected = currentScreen == Screen.LIBRARY || currentScreen == Screen.ALBUMS_GRID,
                                         onClick = { currentScreen = Screen.LIBRARY },
                                         icon = { Icon(Icons.Default.LibraryMusic, "Library") },
                                         label = { Text("보관함") }
@@ -113,71 +100,43 @@ class MainActivity : ComponentActivity() {
                         }
                     ) { innerPadding ->
                         Box(modifier = Modifier.padding(innerPadding)) {
-                            AnimatedContent(targetState = currentScreen, label = "ScreenTransition") { targetScreen ->
+                            AnimatedContent(targetState = currentScreen, label = "MainNavigation") { targetScreen ->
                                 when (targetScreen) {
                                     Screen.SEARCH -> MusicSearchScreen(
-                                        onNavigateToArtist = { artist ->
-                                            searchViewModel.loadArtistDetails(artist.name)
-                                            currentScreen = Screen.ARTIST_DETAIL
-                                        },
-                                        onNavigateToAddToPlaylist = {
-                                            songToAddToPlaylist = it
-                                            currentScreen = Screen.ADD_TO_PLAYLIST
-                                        },
-                                        onNavigateToAlbum = { album ->
-                                            // ★ 앨범 보기 클릭 시 정확한 앨범 정보와 함께 화면 이동
-                                            selectedAlbum = album
-                                            currentScreen = Screen.ALBUM_DETAIL
-                                        },
+                                        onNavigateToArtist = { searchViewModel.loadArtistDetails(it.name); currentScreen = Screen.ARTIST_DETAIL },
+                                        onNavigateToAddToPlaylist = { songToAddToPlaylist = it; currentScreen = Screen.ADD_TO_PLAYLIST },
+                                        onNavigateToAlbum = { selectedAlbum = it; currentScreen = Screen.ALBUM_DETAIL },
                                         onSongClick = { playerViewModel.playSong(it, uiState.songs) },
                                         onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
                                     )
                                     Screen.LIBRARY -> LibraryScreen(
                                         onSongClick = { song, list -> playerViewModel.playSong(song, list) },
-                                        onNavigateToAddToPlaylist = {
-                                            songToAddToPlaylist = it
-                                            currentScreen = Screen.ADD_TO_PLAYLIST
-                                        },
-                                        onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
+                                        onNavigateToAddToPlaylist = { songToAddToPlaylist = it; currentScreen = Screen.ADD_TO_PLAYLIST },
+                                        onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS },
+                                        onNavigateToArtist = { searchViewModel.loadArtistDetails(it.name); currentScreen = Screen.ARTIST_DETAIL },
+                                        onNavigateToAlbum = { selectedAlbum = it; currentScreen = Screen.ALBUM_DETAIL }
                                     )
                                     Screen.ALBUM_DETAIL -> AlbumDetailScreen(
                                         album = selectedAlbum ?: emptyAlbum,
                                         onBack = { currentScreen = Screen.SEARCH },
-                                        onSongClick = { song ->
-                                            playerViewModel.playSong(song, (selectedAlbum ?: emptyAlbum).songs)
-                                        }
+                                        onSongClick = { playerViewModel.playSong(it, (selectedAlbum ?: emptyAlbum).songs) },
+                                        onAlbumClick = { selectedAlbum = it; currentScreen = Screen.ALBUM_DETAIL }
                                     )
                                     Screen.ARTIST_DETAIL -> ArtistDetailScreen(
                                         artist = uiState.selectedArtist ?: emptyArtist,
                                         onBack = { currentScreen = Screen.SEARCH },
-                                        onSongClick = { song ->
-                                            playerViewModel.playSong(song, uiState.selectedArtist?.popularSongs ?: emptyList())
-                                            currentScreen = Screen.NOW_PLAYING
-                                        },
-                                        onPlayAllClick = {
+                                        onSongClick = { playerViewModel.playSong(it, uiState.selectedArtist?.popularSongs ?: emptyList()) },
+                                        onPlayAllClick = { 
                                             val songs = uiState.selectedArtist?.popularSongs ?: emptyList()
-                                            if (songs.isNotEmpty()) {
-                                                playerViewModel.playSong(songs.first(), songs)
-                                                currentScreen = Screen.NOW_PLAYING
-                                            }
+                                            if (songs.isNotEmpty()) playerViewModel.playSong(songs.first(), songs); currentScreen = Screen.NOW_PLAYING
                                         }
                                     )
-                                    Screen.NOW_PLAYING -> NowPlayingScreen(
-                                        viewModel = playerViewModel,
-                                        onBack = { currentScreen = Screen.SEARCH }
-                                    )
+                                    Screen.NOW_PLAYING -> NowPlayingScreen(viewModel = playerViewModel, onBack = { currentScreen = Screen.SEARCH })
                                     Screen.ADD_TO_PLAYLIST -> songToAddToPlaylist?.let {
-                                        AddToPlaylistScreen(
-                                            song = it,
-                                            onBack = { currentScreen = Screen.SEARCH },
-                                            onNavigateToPlaylists = { currentScreen = Screen.SEARCH }
-                                        )
+                                        AddToPlaylistScreen(song = it, onBack = { currentScreen = Screen.SEARCH }, onNavigateToPlaylists = { currentScreen = Screen.SEARCH })
                                     }
                                     Screen.PLAYLISTS -> PlaylistsListScreen(
-                                        onPlaylistClick = {
-                                            selectedPlaylistId = it
-                                            currentScreen = Screen.PLAYLIST_DETAIL
-                                        },
+                                        onPlaylistClick = { selectedPlaylistId = it; currentScreen = Screen.PLAYLIST_DETAIL },
                                         onBack = { currentScreen = Screen.SEARCH }
                                     )
                                     Screen.PLAYLIST_DETAIL -> {
@@ -194,6 +153,7 @@ class MainActivity : ComponentActivity() {
                                             viewModel = viewModel(factory = factory)
                                         )
                                     }
+                                    else -> {}
                                 }
                             }
                         }
