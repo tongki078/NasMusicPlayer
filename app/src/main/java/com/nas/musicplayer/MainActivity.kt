@@ -42,7 +42,7 @@ import com.nas.musicplayer.ui.music.*
 import com.nas.musicplayer.ui.theme.NasAppTheme
 
 enum class Screen {
-    SEARCH, ARTIST_DETAIL, NOW_PLAYING, ADD_TO_PLAYLIST, ALBUM_DETAIL, PLAYLISTS, PLAYLIST_DETAIL, LIBRARY
+    SEARCH, LIBRARY, PLAYLISTS, ARTIST_DETAIL, NOW_PLAYING, ADD_TO_PLAYLIST, ALBUM_DETAIL, PLAYLIST_DETAIL
 }
 
 @UnstableApi
@@ -99,17 +99,18 @@ class MainActivity : ComponentActivity() {
                         bottomBar = {
                             if (currentScreen != Screen.NOW_PLAYING) {
                                 NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                                    NavigationBarItem(
-                                        selected = currentScreen == Screen.LIBRARY || currentScreen == Screen.PLAYLISTS || currentScreen == Screen.PLAYLIST_DETAIL,
-                                        onClick = { currentScreen = Screen.LIBRARY },
-                                        icon = { Icon(Icons.Default.LibraryMusic, "Library") },
-                                        label = { Text("보관함") }
-                                    )
+                                    // 순서 변경: 검색 -> 보관함
                                     NavigationBarItem(
                                         selected = currentScreen == Screen.SEARCH,
                                         onClick = { currentScreen = Screen.SEARCH },
                                         icon = { Icon(Icons.Default.Search, "Search") },
                                         label = { Text("검색") }
+                                    )
+                                    NavigationBarItem(
+                                        selected = currentScreen == Screen.LIBRARY,
+                                        onClick = { currentScreen = Screen.LIBRARY },
+                                        icon = { Icon(Icons.Default.LibraryMusic, "Library") },
+                                        label = { Text("보관함") }
                                     )
                                 }
                             }
@@ -154,7 +155,7 @@ class MainActivity : ComponentActivity() {
                                             selectedPlaylistId = it
                                             currentScreen = Screen.PLAYLIST_DETAIL
                                         },
-                                        onBack = { currentScreen = Screen.LIBRARY }
+                                        onBack = { currentScreen = Screen.SEARCH }
                                     )
                                     Screen.PLAYLIST_DETAIL -> {
                                         val factory = remember(selectedPlaylistId) {
@@ -215,10 +216,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MiniPlayer(song: Song, isPlaying: Boolean, onTogglePlay: () -> Unit, onNextClick: () -> Unit, onClick: () -> Unit) {
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val primaryColor = Color(0xFFFA2D48)
     Surface(
         modifier = Modifier.fillMaxWidth().height(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).clickable { onClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+        tonalElevation = 8.dp
     ) {
         Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(model = song.metaPoster ?: song.albumArtRes, contentDescription = null, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)

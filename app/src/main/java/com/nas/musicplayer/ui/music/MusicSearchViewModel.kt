@@ -26,7 +26,9 @@ class MusicSearchViewModel(private val repository: MusicRepository) : ViewModel(
     val uiState: StateFlow<MusicSearchUiState> = _uiState.asStateFlow()
 
     init {
+        // 초기 데이터 로드
         loadTop100()
+        
         // 최근 검색어 관찰
         viewModelScope.launch {
             repository.recentSearches.collect { searches ->
@@ -38,13 +40,14 @@ class MusicSearchViewModel(private val repository: MusicRepository) : ViewModel(
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         if (query.isBlank()) {
+            // 검색어를 다 지우면 다시 Top100 로드
             loadTop100()
         }
     }
 
-    private fun loadTop100() {
+    fun loadTop100() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, searchQuery = "") }
             try {
                 val top100Songs = musicApiService.getTop100().toSongList().filter { !it.isDir }
                 _uiState.update { it.copy(songs = top100Songs, isLoading = false) }
@@ -56,13 +59,15 @@ class MusicSearchViewModel(private val repository: MusicRepository) : ViewModel(
     }
 
     fun performSearch(query: String = _uiState.value.searchQuery) {
-        if (query.isBlank()) return
+        if (query.isBlank()) {
+            loadTop100()
+            return
+        }
         
-        // 검색 시 쿼리 업데이트
         _uiState.update { it.copy(searchQuery = query) }
 
         viewModelScope.launch {
-            repository.addRecentSearch(query) // 최근 검색어 저장
+            repository.addRecentSearch(query)
             _uiState.update { it.copy(isLoading = true) }
             try {
                 val searchResult = musicApiService.search(query).toSongList().filter { !it.isDir }
