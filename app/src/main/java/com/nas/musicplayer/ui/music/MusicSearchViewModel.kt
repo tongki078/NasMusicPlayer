@@ -14,10 +14,11 @@ data class MusicSearchUiState(
     val isLoading: Boolean = false,
     val searchQuery: String = "",
     val selectedArtist: Artist? = null,
-    val isArtistLoading: Boolean = false
+    val isArtistLoading: Boolean = false,
+    val recentSearches: List<RecentSearch> = emptyList()
 )
 
-class MusicSearchViewModel : ViewModel() {
+class MusicSearchViewModel(private val repository: MusicRepository) : ViewModel() {
 
     private val musicApiService = RetrofitInstance.musicApiService
 
@@ -26,6 +27,12 @@ class MusicSearchViewModel : ViewModel() {
 
     init {
         loadTop100()
+        // 최근 검색어 관찰
+        viewModelScope.launch {
+            repository.recentSearches.collect { searches ->
+                _uiState.update { it.copy(recentSearches = searches) }
+            }
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
@@ -48,10 +55,14 @@ class MusicSearchViewModel : ViewModel() {
         }
     }
 
-    fun performSearch() {
-        val query = _uiState.value.searchQuery
+    fun performSearch(query: String = _uiState.value.searchQuery) {
         if (query.isBlank()) return
+        
+        // 검색 시 쿼리 업데이트 (최근 검색어 클릭 시 필요)
+        _uiState.update { it.copy(searchQuery = query) }
+
         viewModelScope.launch {
+            repository.addRecentSearch(query) // 최근 검색어 저장
             _uiState.update { it.copy(isLoading = true) }
             try {
                 val searchResult = musicApiService.search(query).toSongList().filter { !it.isDir }
@@ -60,6 +71,12 @@ class MusicSearchViewModel : ViewModel() {
                 Log.e("MusicSearchViewModel", "Search Failed", e)
                 _uiState.update { it.copy(isLoading = false) }
             }
+        }
+    }
+
+    fun deleteRecentSearch(query: String) {
+        viewModelScope.launch {
+            repository.deleteRecentSearch(query)
         }
     }
 

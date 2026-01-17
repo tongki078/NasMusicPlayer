@@ -3,9 +3,13 @@ package com.nas.musicplayer.ui.music
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class MusicRepository(private val playlistDao: PlaylistDao) {
+class MusicRepository(
+    private val playlistDao: PlaylistDao,
+    private val recentSearchDao: RecentSearchDao
+) {
 
     val allPlaylists: Flow<List<PlaylistEntity>> = playlistDao.getAllPlaylists()
+    val recentSearches: Flow<List<RecentSearch>> = recentSearchDao.getRecentSearches()
 
     val allSongs: Flow<List<Song>> = allPlaylists.map { playlists ->
         playlists.flatMap { it.songs }.distinctBy { it.id }
@@ -28,5 +32,14 @@ class MusicRepository(private val playlistDao: PlaylistDao) {
         playlistDao.getPlaylistById(playlistId)?.let {
             playlistDao.deletePlaylist(it)
         }
+    }
+
+    suspend fun addRecentSearch(query: String) {
+        if (query.isBlank()) return
+        recentSearchDao.insertSearch(RecentSearch(query))
+    }
+
+    suspend fun deleteRecentSearch(query: String) {
+        recentSearchDao.deleteSearch(query)
     }
 }

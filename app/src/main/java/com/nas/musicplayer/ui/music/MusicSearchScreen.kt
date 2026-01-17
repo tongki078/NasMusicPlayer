@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
@@ -165,6 +166,16 @@ fun MusicSearchScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else if (uiState.searchQuery.isEmpty() && uiState.recentSearches.isNotEmpty()) {
+                    // 최근 검색어 뷰
+                    RecentSearchesView(
+                        recentSearches = uiState.recentSearches,
+                        onSearchClick = { 
+                            viewModel.performSearch(it)
+                            focusManager.clearFocus()
+                        },
+                        onDeleteClick = { viewModel.deleteRecentSearch(it) }
+                    )
                 } else if (uiState.songs.isEmpty() && uiState.searchQuery.isNotBlank()) {
                     NoResultsView(query = uiState.searchQuery)
                 } else {
@@ -209,6 +220,46 @@ fun MusicSearchScreen(
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedSongForSheet = null }
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun RecentSearchesView(
+    recentSearches: List<RecentSearch>,
+    onSearchClick: (String) -> Unit,
+    onDeleteClick: (String) -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            "최근 검색어", 
+            style = MaterialTheme.typography.titleLarge, 
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        recentSearches.forEach { search ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSearchClick(search.query) }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.History, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(search.query, fontSize = 17.sp)
+                }
+                IconButton(
+                    onClick = { onDeleteClick(search.query) }, 
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "삭제", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                }
+            }
+            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.3f))
         }
     }
 }

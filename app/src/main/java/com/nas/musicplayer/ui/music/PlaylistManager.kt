@@ -12,7 +12,8 @@ object PlaylistManager {
         if (dao == null) {
             val db = AppDatabase.getDatabase(context)
             dao = db.playlistDao()
-            repository = MusicRepository(dao!!)
+            // 에러 수정: recentSearchDao를 함께 전달해야 합니다.
+            repository = MusicRepository(dao!!, db.recentSearchDao())
         }
     }
 
