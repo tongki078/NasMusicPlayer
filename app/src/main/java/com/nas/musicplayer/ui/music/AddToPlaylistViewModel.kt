@@ -26,9 +26,9 @@ class AddToPlaylistViewModel : ViewModel() {
 
     fun createAndAddSong(name: String, song: Song) {
         viewModelScope.launch {
-            val id = playlistManager.createPlaylist(name)
-            if(id != 0) { // insert 성공 시
-                playlistManager.addSongToPlaylist(id, song)
+            val newId = playlistManager.createPlaylist(name)
+            if(newId != 0) {
+                playlistManager.addSongToPlaylist(newId, song)
             }
         }
     }

@@ -18,10 +18,8 @@ class PlaylistViewModel(
 
     private val playlistId: Int = savedStateHandle.get<Int>("playlistId")!!
 
-    // PlaylistManager를 통해 DB의 전체 플레이리스트 목록을 관찰합니다.
     val uiState: StateFlow<PlaylistUiState> = PlaylistManager.playlists
         .map { playlists ->
-            // 전체 목록에서 현재 ID와 일치하는 플레이리스트를 찾습니다.
             val playlist = playlists.find { it.id == playlistId }
             PlaylistUiState(playlist = playlist)
         }

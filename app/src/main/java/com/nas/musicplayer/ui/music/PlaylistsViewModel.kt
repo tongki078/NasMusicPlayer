@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 
 class PlaylistsViewModel : ViewModel() {
     private val playlistManager = PlaylistManager
+    
     val playlists: StateFlow<List<PlaylistEntity>> = playlistManager.playlists
         .stateIn(
             scope = viewModelScope,
@@ -18,7 +19,7 @@ class PlaylistsViewModel : ViewModel() {
 
     fun deletePlaylist(id: Int) {
         viewModelScope.launch {
-            playlistManager.deletePlaylist(id)
+            playlistManager.deletePlaylistById(id)
         }
     }
 }

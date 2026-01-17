@@ -50,33 +50,28 @@ fun NowPlayingScreen(
     val playlist by viewModel.currentPlaylist.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
 
-    // --- 스와이프하여 닫기 로직 ---
     var offsetY by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
     val dismissThreshold = with(density) { 150.dp.toPx() }
 
     val draggableState = rememberDraggableState { delta ->
-        // 아래로 드래그할 때만 좌표 이동 (delta > 0 은 아래방향)
         val newOffset = offsetY + delta
         if (newOffset >= 0) {
             offsetY = newOffset
         }
     }
 
-    // 앨범 아트를 위한 Pager 설정
     val pagerState = rememberPagerState(
         initialPage = if (currentIndex < 0) 0 else currentIndex,
         pageCount = { playlist.size }
     )
 
-    // 재생 중인 인덱스가 변경되면 페이저 이동
     LaunchedEffect(currentIndex) {
         if (currentIndex >= 0 && currentIndex < playlist.size && pagerState.currentPage != currentIndex) {
             pagerState.scrollToPage(currentIndex)
         }
     }
 
-    // 사용자가 페이저를 넘기면 곡 변경
     LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage != currentIndex) {
             viewModel.skipToIndex(pagerState.currentPage)
@@ -96,7 +91,6 @@ fun NowPlayingScreen(
                     )
                 )
             )
-            // draggable을 사용하여 수직 방향 드래그만 감지 (슬라이더의 수평 드래그와 충돌 방지)
             .draggable(
                 state = draggableState,
                 orientation = Orientation.Vertical,
@@ -219,7 +213,6 @@ fun NowPlayingScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // formatTime 함수 호출
                     Text(text = formatTime(currentPosition), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(text = formatTime(duration), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -245,7 +238,8 @@ fun NowPlayingScreen(
                         Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(
-                        onClick = { viewModel.togglePlayPause() }
+                        onClick = { viewModel.togglePlayPause() },
+                        modifier = Modifier.size(72.dp)
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
@@ -270,22 +264,23 @@ fun NowPlayingScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 32.dp)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)
             ) {
-                Icon(Icons.AutoMirrored.Rounded.VolumeDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.AutoMirrored.Rounded.VolumeDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
                 Slider(
                     value = volume,
-                    onValueChange = { viewModel.setVolume(it) },
+                    onValueChange = { 
+                        // 드래그 즉시 뷰모델에 반영하여 실시간 체감 향상
+                        viewModel.setVolume(it) 
+                    },
                     modifier = Modifier.weight(1f),
                     colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.onSurface,
-                        activeTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        inactiveTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.Gray,
+                        inactiveTrackColor = Color.LightGray.copy(alpha = 0.3f)
                     )
                 )
-                Icon(Icons.AutoMirrored.Rounded.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.AutoMirrored.Rounded.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
             }
         }
     }

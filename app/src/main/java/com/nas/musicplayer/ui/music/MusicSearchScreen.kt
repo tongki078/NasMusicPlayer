@@ -17,14 +17,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,13 +31,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
@@ -61,7 +56,7 @@ fun MusicSearchScreen(
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
-
+    
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var selectedSongForSheet by remember { mutableStateOf<Song?>(null) }
@@ -88,7 +83,7 @@ fun MusicSearchScreen(
                 actions = {
                     IconButton(onClick = onNavigateToPlaylists) {
                         Icon(
-                            Icons.Rounded.PlaylistPlay,
+                            Icons.AutoMirrored.Rounded.PlaylistPlay,
                             contentDescription = "Playlists",
                             modifier = Modifier.size(32.dp),
                             tint = primaryColor
@@ -116,7 +111,6 @@ fun MusicSearchScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 검색바
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -168,7 +162,6 @@ fun MusicSearchScreen(
                 )
             }
 
-            // 검색 결과 리스트
             Box(modifier = Modifier.fillMaxSize()) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -195,16 +188,16 @@ fun MusicSearchScreen(
         }
     }
 
-    // 더보기 메뉴 시트 (Bottom Sheet)
     if (selectedSongForSheet != null) {
         ModalBottomSheet(
             onDismissRequest = { selectedSongForSheet = null },
             sheetState = sheetState
         ) {
+            val currentSong = selectedSongForSheet!!
             MoreOptionsSheet(
-                song = selectedSongForSheet!!,
+                song = currentSong,
                 onNavigateToArtist = {
-                    onNavigateToArtist(Artist(selectedSongForSheet!!.artist))
+                    onNavigateToArtist(Artist(name = currentSong.artist))
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedSongForSheet = null }
                 },
                 onNavigateToAddToPlaylist = {
@@ -212,7 +205,7 @@ fun MusicSearchScreen(
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedSongForSheet = null }
                 },
                 onNavigateToAlbum = {
-                    onNavigateToAlbum(Album(selectedSongForSheet!!.albumName, selectedSongForSheet!!.artist))
+                    onNavigateToAlbum(Album(name = currentSong.albumName, artist = currentSong.artist))
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedSongForSheet = null }
                 }
             )
@@ -228,9 +221,8 @@ fun MoreOptionsSheet(
     onNavigateToAlbum: () -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-
+    
     Column(modifier = Modifier.padding(bottom = 32.dp)) {
-        // 상단 곡 정보
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -238,7 +230,7 @@ fun MoreOptionsSheet(
             val context = LocalContext.current
             val imageRequest = remember(song.id) {
                 ImageRequest.Builder(context)
-                    .data(song.metaPoster ?: song.albumArtRes)
+                    .data(song.metaPoster ?: (song.albumArtRes ?: R.drawable.ic_launcher_background))
                     .crossfade(true)
                     .build()
             }
@@ -259,7 +251,6 @@ fun MoreOptionsSheet(
         }
         HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
 
-        // 메뉴 리스트
         ListItem(
             headlineContent = { Text("플레이리스트에 추가") },
             leadingContent = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null, tint = primaryColor) },
@@ -294,11 +285,10 @@ fun NoResultsView(query: String) {
 @Composable
 fun SongListItem(song: Song, onItemClick: () -> Unit, onMoreClick: () -> Unit) {
     val context = LocalContext.current
-
-    // 이미지 로딩 최적화
+    
     val imageRequest = remember(song.id) {
         ImageRequest.Builder(context)
-            .data(song.metaPoster ?: song.albumArtRes)
+            .data(song.metaPoster ?: (song.albumArtRes ?: R.drawable.ic_launcher_background))
             .crossfade(true)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -308,12 +298,9 @@ fun SongListItem(song: Song, onItemClick: () -> Unit, onMoreClick: () -> Unit) {
 
     Column(modifier = Modifier.clickable { onItemClick() }) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 이미지 로딩 전 배경과 아이콘을 모두 제거하여 공간만 확보
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -327,7 +314,7 @@ fun SongListItem(song: Song, onItemClick: () -> Unit, onMoreClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize()
                 )
             }
-
+            
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(song.name ?: "제목 없음", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)

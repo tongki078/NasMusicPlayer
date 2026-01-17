@@ -56,7 +56,6 @@ class MusicPlayerViewModel(
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
 
-        // ★ Retrofit과 동일한 OkHttpClient를 사용하여 API 키 인증을 공유합니다.
         val httpDataSourceFactory = OkHttpDataSource.Factory(RetrofitInstance.okHttpClient)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
 
@@ -65,21 +64,26 @@ class MusicPlayerViewModel(
             .setAudioAttributes(audioAttributes, true)
             .build()
             .apply {
-                this.volume = 1.0f
+                this.volume = 1.0f // 플레이어 자체 볼륨 최대
             }
 
         exoPlayer?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlayingValue: Boolean) {
                 _isPlaying.value = isPlayingValue
-                if (isPlayingValue) loudnessEnhancer?.enabled = true
+                if (isPlayingValue) {
+                    try {
+                        loudnessEnhancer?.enabled = true
+                    } catch (e: Exception) {
+                        Log.e("AudioFX", "Error enabling effect", e)
+                    }
+                }
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                mediaItem?.mediaId?.toIntOrNull()?.let { index ->
-                    if (index in _currentPlaylist.value.indices) {
-                        _currentIndex.value = index
-                        _currentSong.value = _currentPlaylist.value[index]
-                    }
+                val index = exoPlayer?.currentMediaItemIndex ?: 0
+                if (index in _currentPlaylist.value.indices) {
+                    _currentIndex.value = index
+                    _currentSong.value = _currentPlaylist.value[index]
                 }
             }
 
@@ -88,9 +92,9 @@ class MusicPlayerViewModel(
             }
         })
 
-        val initialSessionId = exoPlayer?.audioSessionId ?: 0
-        if (initialSessionId != 0 && initialSessionId != C.AUDIO_SESSION_ID_UNSET) {
-            setupLoudnessEnhancer(initialSessionId)
+        val id = exoPlayer?.audioSessionId ?: 0
+        if (id != 0 && id != C.AUDIO_SESSION_ID_UNSET) {
+            setupLoudnessEnhancer(id)
         }
 
         viewModelScope.launch {
@@ -106,16 +110,20 @@ class MusicPlayerViewModel(
         try {
             loudnessEnhancer?.release()
             loudnessEnhancer = LoudnessEnhancer(sessionId).apply {
-                setTargetGain(3000)
+                // 기존 400에서 1500으로 높여 소리를 확실하게 키움
+                setTargetGain(1500) 
                 enabled = true
             }
         } catch (e: Exception) {
-            Log.e("MusicPlayerViewModel", "Failed to set up LoudnessEnhancer", e)
+            Log.e("MusicPlayerViewModel", "LoudnessEnhancer failed", e)
         }
     }
 
     fun playSong(song: Song, playlist: List<Song>) {
-        val startIndex = playlist.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        if (playlist.isEmpty()) return
+        
+        val indexInList = playlist.indexOfFirst { it.id == song.id }
+        val startIndex = if (indexInList != -1) indexInList else 0
         
         _currentPlaylist.value = playlist
         _currentIndex.value = startIndex
@@ -125,11 +133,11 @@ class MusicPlayerViewModel(
             player.stop()
             player.clearMediaItems()
 
-            playlist.forEachIndexed { index, item ->
-                item.streamUrl?.let { url ->
+            playlist.forEach { s ->
+                s.streamUrl?.let { url ->
                     val mediaItem = MediaItem.Builder()
                         .setUri(url)
-                        .setMediaId(index.toString())
+                        .setMediaId(s.id.toString())
                         .build()
                     player.addMediaItem(mediaItem)
                 }
@@ -147,8 +155,10 @@ class MusicPlayerViewModel(
     }
 
     fun togglePlayPause() {
-        exoPlayer?.let {
-            if (it.isPlaying) it.pause() else it.play()
+        if (exoPlayer?.isPlaying == true) {
+            exoPlayer?.pause()
+        } else {
+            exoPlayer?.play()
         }
     }
 
@@ -157,7 +167,11 @@ class MusicPlayerViewModel(
     }
 
     fun playPrevious() {
-        exoPlayer?.seekToPreviousMediaItem()
+        if ((exoPlayer?.currentPosition ?: 0) > 5000) {
+            exoPlayer?.seekTo(0)
+        } else {
+            exoPlayer?.seekToPreviousMediaItem()
+        }
     }
 
     fun seekTo(position: Long) {
@@ -167,7 +181,7 @@ class MusicPlayerViewModel(
     fun skipToIndex(index: Int) {
         if (index in _currentPlaylist.value.indices) {
             exoPlayer?.seekTo(index, 0L)
-            exoPlayer?.play()
+            if (exoPlayer?.isPlaying == false) exoPlayer?.play()
         }
     }
 

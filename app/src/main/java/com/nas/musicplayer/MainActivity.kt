@@ -37,19 +37,12 @@ import com.nas.musicplayer.ui.music.*
 import com.nas.musicplayer.ui.theme.NasAppTheme
 
 enum class Screen {
-    SEARCH,
-    ARTIST_DETAIL,
-    NOW_PLAYING,
-    ADD_TO_PLAYLIST,
-    ALBUM_DETAIL,
-    PLAYLISTS,
-    PLAYLIST_DETAIL
+    SEARCH, ARTIST_DETAIL, NOW_PLAYING, ADD_TO_PLAYLIST, ALBUM_DETAIL, PLAYLISTS, PLAYLIST_DETAIL, LIBRARY
 }
 
 @UnstableApi
 class MainActivity : ComponentActivity() {
     private val searchViewModel: MusicSearchViewModel by viewModels()
-
     private val playerViewModel: MusicPlayerViewModel by viewModels {
         val database = AppDatabase.getDatabase(this)
         val repository = MusicRepository(database.playlistDao())
@@ -58,7 +51,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         volumeControlStream = AudioManager.STREAM_MUSIC
         PlaylistManager.init(this)
 
@@ -74,77 +66,81 @@ class MainActivity : ComponentActivity() {
                 var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        AnimatedContent(
-                            targetState = currentScreen,
-                            transitionSpec = {
-                                if (targetState == Screen.NOW_PLAYING || targetState == Screen.ADD_TO_PLAYLIST ||
-                                    initialState == Screen.NOW_PLAYING || initialState == Screen.ADD_TO_PLAYLIST) {
-                                    slideInVertically { it } + fadeIn() togetherWith slideOutVertically { it } + fadeOut()
-                                } else {
-                                    fadeIn() togetherWith fadeOut()
-                                }
-                            },
-                            label = "ScreenTransition"
-                        ) { targetScreen ->
+                    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                        AnimatedContent(targetState = currentScreen, label = "") { targetScreen ->
                             when (targetScreen) {
-                                Screen.SEARCH -> {
-                                    MusicSearchScreen(
-                                        viewModel = searchViewModel,
-                                        onNavigateToArtist = { artist ->
-                                            searchViewModel.loadArtistDetails(artist.name.hashCode().toLong(), artist.imageUrl)
-                                            currentScreen = Screen.ARTIST_DETAIL
-                                        },
-                                        onNavigateToAddToPlaylist = { song ->
-                                            songToAddToPlaylist = song
-                                            currentScreen = Screen.ADD_TO_PLAYLIST
-                                        },
-                                        onNavigateToAlbum = {
-                                            selectedAlbum = it
-                                            currentScreen = Screen.ALBUM_DETAIL
-                                        },
-                                        onSongClick = { song ->
-                                            playerViewModel.playSong(song, uiState.songs)
-                                        },
-                                        onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
-                                    )
-                                }
-                                Screen.ARTIST_DETAIL -> {
-                                    ArtistDetailScreen(
-                                        artist = uiState.selectedArtist ?: emptyArtist,
+                                Screen.SEARCH -> MusicSearchScreen(
+                                    onNavigateToArtist = { artist ->
+                                        // it 대신 명시된 파라미터 artist.name 사용
+                                        searchViewModel.loadArtistDetails(artist.name)
+                                        currentScreen = Screen.ARTIST_DETAIL
+                                    },
+                                    onNavigateToAddToPlaylist = {
+                                        songToAddToPlaylist = it
+                                        currentScreen = Screen.ADD_TO_PLAYLIST
+                                    },
+                                    onNavigateToAlbum = {
+                                        selectedAlbum = it
+                                        currentScreen = Screen.ALBUM_DETAIL
+                                    },
+                                    onSongClick = { playerViewModel.playSong(it, uiState.songs) },
+                                    onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
+                                )
+                                Screen.LIBRARY -> LibraryScreen(
+                                    onSongClick = { song, list -> playerViewModel.playSong(song, list) },
+                                    onNavigateToAddToPlaylist = {
+                                        songToAddToPlaylist = it
+                                        currentScreen = Screen.ADD_TO_PLAYLIST
+                                    }
+                                )
+                                Screen.ADD_TO_PLAYLIST -> songToAddToPlaylist?.let {
+                                    AddToPlaylistScreen(
+                                        song = it,
                                         onBack = { currentScreen = Screen.SEARCH },
-                                        onSongClick = { song ->
-                                            playerViewModel.playSong(song, uiState.selectedArtist?.popularSongs ?: emptyList())
-                                            currentScreen = Screen.NOW_PLAYING
-                                        },
-                                        onPlayAllClick = {
-                                            val songs = uiState.selectedArtist?.popularSongs ?: emptyList()
-                                            if (songs.isNotEmpty()) {
-                                                playerViewModel.playSong(songs.first(), songs)
-                                                currentScreen = Screen.NOW_PLAYING
-                                            }
-                                        }
+                                        onNavigateToPlaylists = { currentScreen = Screen.SEARCH }
                                     )
                                 }
+                                Screen.PLAYLISTS -> PlaylistsListScreen(
+                                    onPlaylistClick = {
+                                        selectedPlaylistId = it
+                                        currentScreen = Screen.PLAYLIST_DETAIL
+                                    },
+                                    onBack = { currentScreen = Screen.SEARCH }
+                                )
+                                Screen.PLAYLIST_DETAIL -> {
+                                    val factory = remember(selectedPlaylistId) {
+                                        object : ViewModelProvider.Factory {
+                                            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                                                PlaylistViewModel(SavedStateHandle(mapOf("playlistId" to selectedPlaylistId))) as T
+                                        }
+                                    }
+                                    PlaylistViewScreen(
+                                        onBack = { currentScreen = Screen.PLAYLISTS },
+                                        onSongClick = { s, list -> playerViewModel.playSong(s, list) },
+                                        playerViewModel = playerViewModel,
+                                        viewModel = viewModel(factory = factory)
+                                    )
+                                }
+                                Screen.ARTIST_DETAIL -> ArtistDetailScreen(
+                                    artist = uiState.selectedArtist ?: emptyArtist,
+                                    onBack = { currentScreen = Screen.SEARCH },
+                                    onSongClick = { song ->
+                                        playerViewModel.playSong(song, uiState.selectedArtist?.popularSongs ?: emptyList())
+                                        currentScreen = Screen.NOW_PLAYING
+                                    },
+                                    onPlayAllClick = {
+                                        val songs = uiState.selectedArtist?.popularSongs ?: emptyList()
+                                        if (songs.isNotEmpty()) {
+                                            playerViewModel.playSong(songs.first(), songs)
+                                            currentScreen = Screen.NOW_PLAYING
+                                        }
+                                    }
+                                )
                                 Screen.NOW_PLAYING -> {
                                     NowPlayingScreen(
                                         viewModel = playerViewModel,
                                         onBack = { currentScreen = Screen.SEARCH }
                                     )
-                                }
-                                Screen.ADD_TO_PLAYLIST -> {
-                                    songToAddToPlaylist?.let {
-                                        AddToPlaylistScreen(
-                                            song = it,
-                                            onBack = { currentScreen = Screen.SEARCH },
-                                            onNavigateToPlaylists = {
-                                                currentScreen = Screen.PLAYLISTS
-                                            }
-                                        )
-                                    }
                                 }
                                 Screen.ALBUM_DETAIL -> {
                                     AlbumDetailScreen(
@@ -156,56 +152,13 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 }
-                                Screen.PLAYLISTS -> {
-                                    PlaylistsListScreen(
-                                        onPlaylistClick = { playlistId ->
-                                            selectedPlaylistId = playlistId
-                                            currentScreen = Screen.PLAYLIST_DETAIL
-                                        },
-                                        onBack = { currentScreen = Screen.SEARCH },
-                                        // ★★★ 에러 해결: 불필요한 factory 제거 ★★★
-                                        viewModel = viewModel()
-                                    )
-                                }
-                                Screen.PLAYLIST_DETAIL -> {
-                                    val factory = remember(selectedPlaylistId) {
-                                        object : ViewModelProvider.Factory {
-                                            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                                                @Suppress("UNCHECKED_CAST")
-                                                return PlaylistViewModel(SavedStateHandle(mapOf("playlistId" to selectedPlaylistId))) as T
-                                            }
-                                        }
-                                    }
-                                    val playlistViewModel: PlaylistViewModel = viewModel(factory = factory)
-
-                                    PlaylistViewScreen(
-                                        onBack = { currentScreen = Screen.PLAYLISTS },
-                                        onSongClick = { song, list ->
-                                            playerViewModel.playSong(song, list)
-                                        },
-                                        playerViewModel = playerViewModel,
-                                        viewModel = playlistViewModel
-                                    )
-                                }
                             }
                         }
                     }
 
-                    // 미니 플레이어
                     if (currentScreen != Screen.NOW_PLAYING && currentSong != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 12.dp, vertical = 24.dp),
-                            contentAlignment = Alignment.BottomCenter
-                        ) {
-                            MiniPlayer(
-                                song = currentSong!!,
-                                isPlaying = isPlaying,
-                                onTogglePlay = { playerViewModel.togglePlayPause() },
-                                onNextClick = { playerViewModel.playNext() },
-                                onClick = { currentScreen = Screen.NOW_PLAYING }
-                            )
+                        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 84.dp), contentAlignment = Alignment.BottomCenter) {
+                            MiniPlayer(currentSong!!, isPlaying, { playerViewModel.togglePlayPause() }, { playerViewModel.playNext() }, { currentScreen = Screen.NOW_PLAYING })
                         }
                     }
                 }
@@ -215,74 +168,21 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MiniPlayer(
-    song: Song,
-    isPlaying: Boolean,
-    onTogglePlay: () -> Unit,
-    onNextClick: () -> Unit,
-    onClick: () -> Unit
-) {
+fun MiniPlayer(song: Song, isPlaying: Boolean, onTogglePlay: () -> Unit, onNextClick: () -> Unit, onClick: () -> Unit) {
     val primaryColor = MaterialTheme.colorScheme.primary
-
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .shadow(12.dp, RoundedCornerShape(14.dp))
-            .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-        tonalElevation = 8.dp
+        modifier = Modifier.fillMaxWidth().height(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).clickable { onClick() },
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = song.metaPoster ?: song.albumArtRes,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(6.dp)),
-                contentScale = ContentScale.Crop
-            )
-
+        Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(model = song.metaPoster ?: R.drawable.ic_launcher_background, contentDescription = null, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
             Spacer(modifier = Modifier.width(12.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = song.name ?: "제목 없음",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(text = song.name ?: "", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = song.artist, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-
-            IconButton(onClick = onTogglePlay) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = primaryColor
-                )
-            }
-
-            IconButton(onClick = onNextClick) {
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = primaryColor
-                )
-            }
+            IconButton(onClick = onTogglePlay) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, modifier = Modifier.size(32.dp), tint = primaryColor) }
+            IconButton(onClick = onNextClick) { Icon(Icons.Default.SkipNext, null, modifier = Modifier.size(32.dp), tint = primaryColor) }
         }
     }
 }

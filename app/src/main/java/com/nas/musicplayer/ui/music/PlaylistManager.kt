@@ -6,10 +6,13 @@ import kotlinx.coroutines.flow.emptyFlow
 
 object PlaylistManager {
     private var dao: PlaylistDao? = null
+    private var repository: MusicRepository? = null
 
     fun init(context: Context) {
         if (dao == null) {
-            dao = AppDatabase.getDatabase(context).playlistDao()
+            val db = AppDatabase.getDatabase(context)
+            dao = db.playlistDao()
+            repository = MusicRepository(dao!!)
         }
     }
 
@@ -18,20 +21,14 @@ object PlaylistManager {
     }
 
     suspend fun createPlaylist(name: String): Int {
-        val newPlaylist = PlaylistEntity(name = name)
-        return dao?.insertPlaylist(newPlaylist)?.toInt() ?: 0
+        return repository?.createPlaylist(name)?.toInt() ?: 0
     }
 
     suspend fun addSongToPlaylist(playlistId: Int, song: Song) {
-        val playlist = dao?.getPlaylistById(playlistId) ?: return
-        if (playlist.songs.none { it.id == song.id }) {
-            val updatedSongs = playlist.songs.toMutableList().apply { add(song) }
-            dao?.updatePlaylist(playlist.copy(songs = updatedSongs))
-        }
+        repository?.addSongToPlaylist(playlistId, song)
     }
     
-    suspend fun deletePlaylist(id: Int) {
-         val playlist = dao?.getPlaylistById(id) ?: return
-         dao?.deletePlaylist(playlist)
+    suspend fun deletePlaylistById(id: Int) {
+         repository?.deletePlaylistById(id)
     }
 }
