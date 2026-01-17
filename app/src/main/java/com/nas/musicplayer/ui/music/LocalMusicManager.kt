@@ -4,27 +4,31 @@ import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
 import android.net.Uri
+import android.util.Log
 
 object LocalMusicManager {
+    private const val TAG = "LocalMusicManager"
+
     fun getAllAudioFiles(context: Context): List<Song> {
         val songList = mutableListOf<Song>()
-        val collection = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-        } else {
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        }
+        
+        // VOLUME_EXTERNAL_CONTENT_URI를 명시적으로 사용하여 모든 외부 저장소 스캔
+        val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.ALBUM_ID
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.DISPLAY_NAME
         )
 
-        // 오디오 파일만 필터링
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        // IS_MUSIC 조건이 에뮬레이터에 따라 다를 수 있으므로 폭넓게 쿼리
+        val selection = "${MediaStore.Audio.Media.DURATION} >= 1000" // 1초 이상의 오디오만
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
+
+        Log.d(TAG, "Starting media scan...")
 
         context.contentResolver.query(collection, projection, selection, null, sortOrder)?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
@@ -32,22 +36,26 @@ object LocalMusicManager {
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+
+            Log.d(TAG, "Found ${cursor.count} audio files in MediaStore.")
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                val title = cursor.getString(titleColumn)
-                val artist = cursor.getString(artistColumn)
-                val album = cursor.getString(albumColumn)
+                val title = cursor.getString(titleColumn) ?: cursor.getString(displayNameColumn) ?: "Unknown Title"
+                val artist = cursor.getString(artistColumn) ?: "Unknown Artist"
+                val album = cursor.getString(albumColumn) ?: "Unknown Album"
                 val albumId = cursor.getLong(albumIdColumn)
 
                 val contentUri: Uri = ContentUris.withAppendedId(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id
                 )
                 
-                // 앨범 아트 URI (안드로이드 시스템 라이브러리 경로)
                 val artUri = ContentUris.withAppendedId(
                     Uri.parse("content://media/external/audio/albumart"), albumId
                 ).toString()
+
+                Log.d(TAG, "Loaded song: $title by $artist")
 
                 songList.add(
                     Song(
@@ -61,7 +69,8 @@ object LocalMusicManager {
                     )
                 )
             }
-        }
+        } ?: Log.e(TAG, "Cursor is null, could not query MediaStore.")
+        
         return songList
     }
 }

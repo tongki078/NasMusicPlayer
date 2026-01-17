@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -18,8 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,21 +76,31 @@ class MainActivity : ComponentActivity() {
                 var selectedPlaylistId by remember { mutableStateOf<Int?>(null) }
                 var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) }
                 
-                // 권한 요청
+                // --- 권한 요청 로직 강화 ---
                 val context = LocalContext.current
-                val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 
-                    Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
-                
-                var hasPermission by remember {
-                    mutableStateOf(ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED)
+                val requiredPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Manifest.permission.READ_MEDIA_AUDIO
+                } else {
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                }
+
+                var permissionGranted by remember {
+                    mutableStateOf(ContextCompat.checkSelfPermission(context, requiredPermission) == PackageManager.PERMISSION_GRANTED)
                 }
 
                 val launcher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
-                ) { isGranted -> hasPermission = isGranted }
+                ) { isGranted ->
+                    permissionGranted = isGranted
+                    if (!isGranted) {
+                        Log.e("NasPlayer", "Permission Denied by User")
+                    }
+                }
 
                 LaunchedEffect(Unit) {
-                    if (!hasPermission) launcher.launch(permission)
+                    if (!permissionGranted) {
+                        launcher.launch(requiredPermission)
+                    }
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -99,7 +108,6 @@ class MainActivity : ComponentActivity() {
                         bottomBar = {
                             if (currentScreen != Screen.NOW_PLAYING) {
                                 NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                                    // 순서 변경: 검색 -> 보관함
                                     NavigationBarItem(
                                         selected = currentScreen == Screen.SEARCH,
                                         onClick = { currentScreen = Screen.SEARCH },
@@ -135,14 +143,24 @@ class MainActivity : ComponentActivity() {
                                         onSongClick = { playerViewModel.playSong(it, uiState.songs) },
                                         onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
                                     )
-                                    Screen.LIBRARY -> LibraryScreen(
-                                        onSongClick = { song, list -> playerViewModel.playSong(song, list) },
-                                        onNavigateToAddToPlaylist = {
-                                            songToAddToPlaylist = it
-                                            currentScreen = Screen.ADD_TO_PLAYLIST
-                                        },
-                                        onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
-                                    )
+                                    Screen.LIBRARY -> {
+                                        if (permissionGranted) {
+                                            LibraryScreen(
+                                                onSongClick = { song, list -> playerViewModel.playSong(song, list) },
+                                                onNavigateToAddToPlaylist = {
+                                                    songToAddToPlaylist = it
+                                                    currentScreen = Screen.ADD_TO_PLAYLIST
+                                                },
+                                                onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
+                                            )
+                                        } else {
+                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Button(onClick = { launcher.launch(requiredPermission) }) {
+                                                    Text("권한 허용 후 파일 불러오기")
+                                                }
+                                            }
+                                        }
+                                    }
                                     Screen.ADD_TO_PLAYLIST -> songToAddToPlaylist?.let {
                                         AddToPlaylistScreen(
                                             song = it,
@@ -218,9 +236,8 @@ class MainActivity : ComponentActivity() {
 fun MiniPlayer(song: Song, isPlaying: Boolean, onTogglePlay: () -> Unit, onNextClick: () -> Unit, onClick: () -> Unit) {
     val primaryColor = Color(0xFFFA2D48)
     Surface(
-        modifier = Modifier.fillMaxWidth().height(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).clickable { onClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-        tonalElevation = 8.dp
+        modifier = Modifier.fillMaxWidth().height(64.dp).shadow(8.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).clickable { onClick() },
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
     ) {
         Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(model = song.metaPoster ?: song.albumArtRes, contentDescription = null, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
