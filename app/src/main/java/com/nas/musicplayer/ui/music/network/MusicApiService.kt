@@ -4,7 +4,7 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 /**
- * 'music.yommi.mywire.org' 서버와 통신하기 위한 API 명세를 정의합니다.
+ * 'music.yommi.mywire.org' 서버와 통신하기 위한 API 명세를 정의합니다.dd
  */
 interface MusicApiService {
 
