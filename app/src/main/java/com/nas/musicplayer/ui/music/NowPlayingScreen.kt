@@ -1,6 +1,7 @@
 package com.nas.musicplayer.ui.music
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue // 명시적으로 추가
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,15 +36,20 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.nas.musicplayer.R
+import com.nas.musicplayer.MusicPlayerViewModel
+import com.nas.musicplayer.Song
 import kotlin.math.roundToInt
+import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.Airplay
 
 @UnstableApi
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun NowPlayingScreen(
     viewModel: MusicPlayerViewModel,
     onBack: () -> Unit
 ) {
+    // collectAsState에 타입 추론이 잘 되도록 확인
     val song by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
@@ -123,7 +130,7 @@ fun NowPlayingScreen(
 
             Spacer(modifier = Modifier.weight(0.2f))
 
-            // 2. Album Art Pager (그림자와 배경 제거)
+            // 2. Album Art Pager
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
@@ -147,7 +154,7 @@ fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .scale(if (page == pagerState.currentPage) albumArtScale else 0.85f)
-                        .clip(RoundedCornerShape(12.dp)), // 그림자와 배경색 코드 완전 제거
+                        .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
             }
@@ -207,7 +214,7 @@ fun NowPlayingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { /* Lyrics */ }) {
-                    Icon(Icons.Rounded.Lyrics, null, modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
+                    Icon(Icons.Default.Lyrics, null, modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     IconButton(onClick = { viewModel.playPrevious() }) {
@@ -221,7 +228,7 @@ fun NowPlayingScreen(
                     }
                 }
                 IconButton(onClick = { /* AirPlay */ }) {
-                    Icon(Icons.Rounded.Airplay, null, modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
+                    Icon(Icons.Default.Airplay, null, modifier = Modifier.size(24.dp), tint = Color(0xFFFA2D48))
                 }
             }
 

@@ -2,6 +2,8 @@ package com.nas.musicplayer.ui.music
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nas.musicplayer.Song
+import com.nas.musicplayer.db.PlaylistEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -27,8 +29,8 @@ class AddToPlaylistViewModel : ViewModel() {
     fun createAndAddSong(name: String, song: Song) {
         viewModelScope.launch {
             val newId = playlistManager.createPlaylist(name)
-            if(newId != 0) {
-                playlistManager.addSongToPlaylist(newId, song)
+            if(newId != 0L) {
+                playlistManager.addSongToPlaylist(newId.toInt(), song)
             }
         }
     }

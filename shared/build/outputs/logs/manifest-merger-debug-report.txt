@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml:2:13-83
+INJECTED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml:2:13-83
+	package
+		INJECTED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml
+	xmlns:android
+		ADDED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml:2:23-81
+uses-sdk
+INJECTED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml reason: use-sdk injection requested
+INJECTED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml
+INJECTED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml
+	android:targetSdkVersion
+		INJECTED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml
+	android:minSdkVersion
+		INJECTED from /Users/gommi/AndroidProject/androidApp/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest11888737681623977411.xml

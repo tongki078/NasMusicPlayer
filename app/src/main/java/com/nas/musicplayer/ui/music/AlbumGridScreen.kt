@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.nas.musicplayer.R
+import com.nas.musicplayer.Album
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

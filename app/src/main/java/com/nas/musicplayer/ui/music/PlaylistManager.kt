@@ -1,6 +1,11 @@
 package com.nas.musicplayer.ui.music
 
 import android.content.Context
+import com.nas.musicplayer.Song
+import com.nas.musicplayer.MusicRepository
+import com.nas.musicplayer.db.PlaylistDao
+import com.nas.musicplayer.db.PlaylistEntity
+import com.nas.musicplayer.db.getDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -10,9 +15,9 @@ object PlaylistManager {
 
     fun init(context: Context) {
         if (dao == null) {
-            val db = AppDatabase.getDatabase(context)
+            val db = getDatabase(context)
             dao = db.playlistDao()
-            // 에러 수정: recentSearchDao를 함께 전달해야 합니다.
+            // shared 모듈의 MusicRepository를 초기화합니다.
             repository = MusicRepository(dao!!, db.recentSearchDao())
         }
     }
@@ -21,8 +26,8 @@ object PlaylistManager {
         dao?.getAllPlaylists() ?: emptyFlow()
     }
 
-    suspend fun createPlaylist(name: String): Int {
-        return repository?.createPlaylist(name)?.toInt() ?: 0
+    suspend fun createPlaylist(name: String): Long {
+        return repository?.createPlaylist(name) ?: 0
     }
 
     suspend fun addSongToPlaylist(playlistId: Int, song: Song) {

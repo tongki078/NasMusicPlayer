@@ -1,10 +1,2 @@
 package com.nas.musicplayer.ui.music
-
-/**
- * 플레이리스트를 표현하기 위한 데이터 클래스
- */
-data class Playlist(
-    val id: Int,
-    val name: String,
-    val songs: List<Song> = emptyList()
-)
+// 이 파일은 shared 모듈의 모델과 충돌을 피하기 위해 비워둡니다.

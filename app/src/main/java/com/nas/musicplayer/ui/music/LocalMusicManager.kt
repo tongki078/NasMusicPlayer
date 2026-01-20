@@ -5,6 +5,7 @@ import android.content.Context
 import android.provider.MediaStore
 import android.net.Uri
 import android.util.Log
+import com.nas.musicplayer.Song
 
 object LocalMusicManager {
     private const val TAG = "LocalMusicManager"

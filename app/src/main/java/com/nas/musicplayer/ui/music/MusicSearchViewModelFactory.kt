@@ -2,6 +2,7 @@ package com.nas.musicplayer.ui.music
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.nas.musicplayer.MusicRepository
 
 class MusicSearchViewModelFactory(
     private val repository: MusicRepository

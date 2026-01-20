@@ -17,7 +17,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Mic
@@ -32,6 +32,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,7 +42,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.nas.musicplayer.*
 import com.nas.musicplayer.R
+import com.nas.musicplayer.db.RecentSearch
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,9 +55,11 @@ fun MusicSearchScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onSongClick: (Song) -> Unit,
     onNavigateToPlaylists: () -> Unit,
-    viewModel: MusicSearchViewModel = viewModel()
+    viewModel: MusicSearchViewModel = viewModel(),
+    mainViewModel: MainViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val aiResult by mainViewModel.outputText.collectAsState()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
@@ -90,7 +95,7 @@ fun MusicSearchScreen(
                 },
                 actions = {
                     IconButton(onClick = onNavigateToPlaylists) {
-                        Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, null, modifier = Modifier.size(32.dp), tint = primaryColor)
+                        Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null, modifier = Modifier.size(32.dp), tint = primaryColor)
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -121,7 +126,7 @@ fun MusicSearchScreen(
                             }
                             voiceLauncher.launch(intent)
                         }) {
-                            Icon(Icons.Rounded.Mic, null, tint = primaryColor)
+                            Icon(Icons.Default.Mic, null, tint = primaryColor)
                         }
                     },
                     modifier = Modifier
@@ -142,6 +147,50 @@ fun MusicSearchScreen(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
                 )
+            }
+            
+            // AI 추천 섹션
+            if (uiState.searchQuery.isEmpty() && !isSearchFocused) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("AI 추천", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Button(onClick = {
+                            mainViewModel.generateText("활동적인 분위기에 어울리는 최신 팝송 3곡만 추천해줘. 각 추천은 '가수 - 제목' 형식으로 한 줄씩 표시해줘.")
+                        }) {
+                            Text("추천 받기")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (aiResult.isNotBlank()) {
+                        val recommendations = aiResult.lines().filter { it.isNotBlank() }
+                        if (recommendations.isNotEmpty()) {
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                recommendations.forEach { recommendation ->
+                                    Text(
+                                        text = "🎵 $recommendation",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                viewModel.onSearchQueryChanged(recommendation)
+                                                viewModel.performSearch()
+                                                focusManager.clearFocus()
+                                                isSearchFocused = false
+                                            }
+                                            .padding(vertical = 8.dp),
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(top = 16.dp))
+                }
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -259,7 +308,10 @@ fun SongListItem(song: Song, onItemClick: () -> Unit, onMoreClick: () -> Unit) {
         ) {
             val context = LocalContext.current
             val imageRequest = remember(song.id) {
-                ImageRequest.Builder(context).data(song.metaPoster ?: song.albumArtRes).crossfade(true).build()
+                ImageRequest.Builder(context).data(song.metaPoster)
+                    .placeholder(R.drawable.ic_launcher_background)
+                    .error(R.drawable.ic_launcher_background)
+                    .crossfade(true).build()
             }
             AsyncImage(
                 model = imageRequest,

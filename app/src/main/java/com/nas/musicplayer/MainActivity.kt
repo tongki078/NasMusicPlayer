@@ -35,8 +35,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
+import com.nas.musicplayer.db.getDatabase
 import com.nas.musicplayer.ui.music.*
 import com.nas.musicplayer.ui.theme.NasAppTheme
+// Shared 모듈의 모델 명시적 임포트
+import com.nas.musicplayer.Song
+import com.nas.musicplayer.Album
+import com.nas.musicplayer.Artist
+import com.nas.musicplayer.MusicRepository
+import com.nas.musicplayer.MusicPlayerViewModel
+import com.nas.musicplayer.PlaylistViewModel
+// Shared 모듈의 DataSource 유틸리티 명시적 임포트
+import com.nas.musicplayer.ui.music.emptyAlbum
+import com.nas.musicplayer.ui.music.emptyArtist
 
 enum class Screen {
     SEARCH, LIBRARY, PLAYLISTS, ARTIST_DETAIL, NOW_PLAYING, ADD_TO_PLAYLIST, ALBUM_DETAIL, PLAYLIST_DETAIL, ALBUMS_GRID
@@ -46,7 +57,7 @@ enum class Screen {
 class MainActivity : ComponentActivity() {
     
     private val repository: MusicRepository by lazy {
-        val database = AppDatabase.getDatabase(this)
+        val database = getDatabase(this)
         MusicRepository(database.playlistDao(), database.recentSearchDao())
     }
 
@@ -102,29 +113,29 @@ class MainActivity : ComponentActivity() {
                             AnimatedContent(targetState = currentScreen, label = "MainNavigation") { targetScreen ->
                                 when (targetScreen) {
                                     Screen.SEARCH -> MusicSearchScreen(
-                                        onNavigateToArtist = { searchViewModel.loadArtistDetails(it.name); currentScreen = Screen.ARTIST_DETAIL },
-                                        onNavigateToAddToPlaylist = { songToAddToPlaylist = it; currentScreen = Screen.ADD_TO_PLAYLIST },
-                                        onNavigateToAlbum = { selectedAlbum = it; currentScreen = Screen.ALBUM_DETAIL },
-                                        onSongClick = { playerViewModel.playSong(it, uiState.songs) },
+                                        onNavigateToArtist = { artist -> artist.name?.let { searchViewModel.loadArtistDetails(it) }; currentScreen = Screen.ARTIST_DETAIL },
+                                        onNavigateToAddToPlaylist = { song -> songToAddToPlaylist = song; currentScreen = Screen.ADD_TO_PLAYLIST },
+                                        onNavigateToAlbum = { album -> selectedAlbum = album; currentScreen = Screen.ALBUM_DETAIL },
+                                        onSongClick = { song -> playerViewModel.playSong(song, uiState.songs) },
                                         onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS }
                                     )
                                     Screen.LIBRARY -> LibraryScreen(
                                         onSongClick = { song, list -> playerViewModel.playSong(song, list) },
-                                        onNavigateToAddToPlaylist = { songToAddToPlaylist = it; currentScreen = Screen.ADD_TO_PLAYLIST },
+                                        onNavigateToAddToPlaylist = { song -> songToAddToPlaylist = song; currentScreen = Screen.ADD_TO_PLAYLIST },
                                         onNavigateToPlaylists = { currentScreen = Screen.PLAYLISTS },
-                                        onNavigateToArtist = { searchViewModel.loadArtistDetails(it.name); currentScreen = Screen.ARTIST_DETAIL },
-                                        onNavigateToAlbum = { selectedAlbum = it; currentScreen = Screen.ALBUM_DETAIL }
+                                        onNavigateToArtist = { artist -> artist.name?.let { searchViewModel.loadArtistDetails(it) }; currentScreen = Screen.ARTIST_DETAIL },
+                                        onNavigateToAlbum = { album -> selectedAlbum = album; currentScreen = Screen.ALBUM_DETAIL }
                                     )
                                     Screen.ALBUM_DETAIL -> AlbumDetailScreen(
                                         album = selectedAlbum ?: emptyAlbum,
                                         onBack = { currentScreen = Screen.SEARCH },
-                                        onSongClick = { playerViewModel.playSong(it, (selectedAlbum ?: emptyAlbum).songs) },
-                                        onAlbumClick = { selectedAlbum = it; currentScreen = Screen.ALBUM_DETAIL }
+                                        onSongClick = { song -> playerViewModel.playSong(song, (selectedAlbum ?: emptyAlbum).songs) },
+                                        onAlbumClick = { album -> selectedAlbum = album; currentScreen = Screen.ALBUM_DETAIL }
                                     )
                                     Screen.ARTIST_DETAIL -> ArtistDetailScreen(
                                         artist = uiState.selectedArtist ?: emptyArtist,
                                         onBack = { currentScreen = Screen.SEARCH },
-                                        onSongClick = { playerViewModel.playSong(it, uiState.selectedArtist?.popularSongs ?: emptyList()) },
+                                        onSongClick = { song -> playerViewModel.playSong(song, uiState.selectedArtist?.popularSongs ?: emptyList()) },
                                         onPlayAllClick = { 
                                             val songs = uiState.selectedArtist?.popularSongs ?: emptyList()
                                             if (songs.isNotEmpty()) playerViewModel.playSong(songs.first(), songs); currentScreen = Screen.NOW_PLAYING
@@ -135,7 +146,7 @@ class MainActivity : ComponentActivity() {
                                         AddToPlaylistScreen(song = it, onBack = { currentScreen = Screen.SEARCH }, onNavigateToPlaylists = { currentScreen = Screen.SEARCH })
                                     }
                                     Screen.PLAYLISTS -> PlaylistsListScreen(
-                                        onPlaylistClick = { selectedPlaylistId = it; currentScreen = Screen.PLAYLIST_DETAIL },
+                                        onPlaylistClick = { id -> selectedPlaylistId = id; currentScreen = Screen.PLAYLIST_DETAIL },
                                         onBack = { currentScreen = Screen.SEARCH }
                                     )
                                     Screen.PLAYLIST_DETAIL -> {
@@ -177,7 +188,7 @@ fun MiniPlayer(song: Song, isPlaying: Boolean, onTogglePlay: () -> Unit, onNextC
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
     ) {
         Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(model = song.metaPoster ?: song.albumArtRes, contentDescription = null, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
+            AsyncImage(model = song.metaPoster ?: R.drawable.ic_launcher_background, contentDescription = null, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = song.name ?: "", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
