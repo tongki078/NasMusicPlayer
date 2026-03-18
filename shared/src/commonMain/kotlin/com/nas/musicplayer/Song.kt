@@ -22,9 +22,15 @@ data class Song(
     @SerialName("mtime_ts") val mtimeTs: Double? = null,
     @SerialName("meta_id") val metaId: String? = null,
     @SerialName("meta_poster") val metaPoster: String? = null,
-    val artist: String = "Unknown Artist",
-    val albumName: String = "Unknown Album",
+
+    // [수정] 기본값 제거 및 SerialName 명시적 지정
+    @SerialName("artist") val artist: String? = "Unknown Artist",
+    @SerialName("albumName") val albumName: String? = "Unknown Album",
+
+    // [추가] 서버 API와 일치하도록 누락된 필드 추가 (파싱 오류 방지)
+    @SerialName("genre") val genre: String? = null,
+    @SerialName("release_date") val releaseDate: String? = null,
+
     val albumArtRes: Int? = null,
-    // 차후 album_info 객체를 위한 필드 (현재는 임시 String)
-    val albumInfo: String? = null 
+    val albumInfo: String? = null
 )
